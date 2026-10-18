@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+enum ExamType {
+  MIDTERM
+  FINAL
+  PRACTICAL
+  INTERNAL
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum AlertType {
+  EXAM_UPDATE
+  VENUE_CHANGE
+  DEADLINE
+  GENERAL
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student    Student?
+  faculty    Faculty?
+  queryLogs  QueryLog[]
+  notices    Notice[]
+  alerts     Alert[]
+}
+
+model Department {
+  id       String @id @default(cuid())
+  code     String @unique
+  name     String
+
+  students Student[]
+  faculty  Faculty[]
+  subjects Subject[]
+}
+
+model Student {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  rollNo       String   @unique
+  departmentId String
+  semester     Int
+  section      String   @default("A")
+  createdAt    DateTime @default(now())
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department   @relation(fields: [departmentId], references: [id])
+  attendance Attendance[]
+
+  @@index([departmentId, semester])
+}
+
+model Faculty {
+  id           String @id @default(cuid())
+  userId       String @unique
+  employeeId   String @unique
+  departmentId String
+  designation  String @default("Assistant Professor")
+  cabin        String?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+  subjects   Subject[]
+}
+
+model Subject {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  aliases      String[] @default([])
+  departmentId String
+  semester     Int
+  credits      Int      @default(3)
+  syllabus     String?
+  facultyId    String?
+
+  department Department       @relation(fields: [departmentId], references: [id])
+  faculty    Faculty?         @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  exams      Exam[]
+  timetable  TimetableEntry[]
+  attendance Attendance[]
+
+  @@index([departmentId, semester])
+}
+
+model Exam {
+  id           String   @id @default(cuid())
+  subjectId    String
+  type         ExamType @default(FINAL)
+  startsAt     DateTime
+  durationMins Int      @default(180)
+  room         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([startsAt])
+}
+
+model TimetableEntry {
+  id        String  @id @default(cuid())
+  subjectId String
+  // 1 = Monday ... 7 = Sunday
+  dayOfWeek Int
+  // "HH:mm" 24h
+  startTime String
+  endTime   String
+  room      String
+  section   String  @default("A")
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, dayOfWeek])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  studentId String
+  subjectId String
+  date      DateTime         @db.Date
+  status    AttendanceStatus
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId, date])
+}
+
+model Notice {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  audience    Role?
+  authorId    String?
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([publishedAt])
+}
+
+model Alert {
+  id        String    @id @default(cuid())
+  type      AlertType @default(GENERAL)
+  message   String
+  // null = everyone; otherwise targeted at one student's department/semester via audience filters
+  departmentId String?
+  semester     Int?
+  userId    String?
+  createdAt DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model QueryLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  query     String
+  intent    String
+  answered  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}

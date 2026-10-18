@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "smart-college-erp",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "smart-college-erp", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}
