@@ -4,7 +4,7 @@
     {
       "name": "smart-college-erp",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "smart-college-erp", "run", "dev"],
+      "runtimeArgs": ["run", "dev"],
       "port": 3000
     }
   ]
